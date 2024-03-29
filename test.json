@@ -1,0 +1,58 @@
+{
+    "ARBCreateSubscriptionRequest": {
+      "merchantAuthentication": {
+        "name": "6g64W4HDmch",
+        "transactionKey": "44S3X8rsZU2Dx2y9"
+      },
+      "refId": "123456",
+      "subscription": {
+        "name": "Sample Subscription",
+        "paymentSchedule": {
+          "interval": {
+            "length": "1",
+            "unit": "months"
+          },
+          "startDate": "2020-01-01",
+          "totalOccurrences": "12",
+          "trialOccurrences": "1"
+        },
+        "order": {
+          "invoiceNumber": "12345",
+          "description": "Monthly Subscription",
+          "item": {
+            "lineItems": {
+              "lineItem": [
+                {
+                  "itemId": "1",
+                  "name": "Product 1",
+                  "description": "Description of Product 1",
+                  "quantity": "2",
+                  "unitPrice": "5.00",
+                  "type": "recurring"
+                },
+                {
+                  "itemId": "2",
+                  "name": "Product 2",
+                  "description": "Description of Product 2",
+                  "quantity": "1",
+                  "unitPrice": "10.00",
+                  "type": "oneTime"
+                }
+              ]
+            }
+          }
+        },
+        "payment": {
+          "creditCard": {
+            "cardNumber": "4111111111111111",
+            "expirationDate": "2022-12"
+          }
+        },
+        "billTo": {
+          "firstName": "John",
+          "lastName": "Doe"
+        }
+      }
+    }
+  }
+  

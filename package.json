@@ -1,0 +1,17 @@
+{
+  "name": "stripe-sample",
+  "version": "1.0.0",
+  "description": "A sample Stripe implementation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "stripe-samples",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1",
+    "nodemon": "^3.1.0",
+    "razorpay": "^2.9.2",
+    "stripe": "^8.222.0"
+  }
+}

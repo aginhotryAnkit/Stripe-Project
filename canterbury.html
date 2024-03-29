@@ -1,0 +1,741 @@
+{% set nonTagOffSet = 0 %}
+{% set nonTagLimit = 0 %}
+{% set remainingTagProfiles = 0 %}
+{% set industries = module.industries.industries_directory_property.property_definition.options %}
+{% set tiers = module.tier_directory_property.tier.property_definition.options %}
+{% set regions = module.region_directory_property.region.property_definition.options %}
+
+{% set newProfileArray = [] %}
+
+{% set queryParam = "limit=30&order=-membership_tags&offset=0&display_on_webste__eq=true" %}
+
+{% if request.query_dict.region %}
+  {% set queryParam = queryParam ~ "&add_region__in=" ~ request.query_dict.region  %}
+{% endif %}
+{% if request.query_dict.tier %}
+  {% set queryParam = queryParam ~ "&membership_tags__in=" ~ request.query_dict.tier %}
+{% endif %}
+{% if request.query_dict.industry %}
+  {% set queryParam = queryParam ~ "&category__in=" ~ request.query_dict.industry %}
+{% endif %}
+{% if request.query_dict.search %}
+  {% set queryParam = queryParam ~ "&directory_profile_name__contains="~request.query_dict.search %}
+{% endif %}
+{% if request.query_dict.page %}
+  {% set queryParam = "limit=30&order=directory_profile_name&membership_tags__is_null=true&offset="~(request.query_dict.page - 2)*30 ~"&display_on_webste__eq=true"  %}
+{% endif %}
+
+{% set tagsObjects = crm_objects('directory_profiles', 'membership_tags__not_null=true&display_on_webste__eq=true', "directory_profile_name,add_region,business_description,membership_tags,category,logo" ) %}
+{% set nonTagsObjects = crm_objects('directory_profiles', 'membership_tags__is_null=true&display_on_webste__eq=true', "directory_profile_name,add_region,business_description,membership_tags,category,logo" ) %}
+
+{% set objects = crm_objects('directory_profiles', queryParam, "directory_profile_name,add_region,business_description,membership_tags,category,logo" ) %}
+
+{% set tableLength = objects.total %}
+
+{% if tagsObjects.total > 30 and request.query_dict.page == null %}
+  {% set remainingTagProfiles = tagsObjects.total - 30 %}
+{% endif %}
+
+{% if request.query_dict.page %}
+  {% set remainingTagProfiles = tagsObjects.total - (request.query_dict.page - 1) * 30 %}
+{% endif %}
+
+{% if request.query_dict.page and remainingTagProfiles < 30 and remainingTagProfiles > 0 %}
+  {% set nonTagLimit = 30 - remainingTagProfiles %}
+  {% set nonTagOffSet = 0 %}
+{% elif request.query_dict.page and remainingTagProfiles <= 0 %}
+<script>console.log('check')</script>
+  {% set nonTagLimit = 30 %}
+  {% set nonTagOffSet = remainingTagProfiles|multiply(-1) %}
+{% endif %}
+
+{% for profile in tagsObjects.results %}
+  {% set _ = newProfileArray.append(profile) %}
+{% endfor %}
+
+{% set nonTagData = [] %}
+{% if nonTagLimit > 0 %}
+  {% set nonTagData = crm_objects('directory_profiles', 'membership_tags__is_null=true&order=directory_profile_name&display_on_webste__eq=true&limit='~nonTagLimit~"&offset="~nonTagOffSet, "directory_profile_name,add_region,business_description,membership_tags,category,logo" ) %}
+{% endif %}
+
+<script>
+  console.log({{tagsObjects.total|tojson}})
+  console.log('d',{{nonTagsObjects.total|tojson}})
+  console.log('remainingTagProfiles',{{remainingTagProfiles}})
+  console.log('nonTagOffSet',{{nonTagOffSet}})
+  console.log('nonTagLimits',{{nonTagLimit}})
+  console.log('nonTagData',{{nonTagData|tojson}})
+  console.log('newProfileArray',{{newProfileArray|tojson}})
+</script>
+
+{% if request.query_dict.page > 1 %}
+  {% set tableLength = tableLength|add(30)%}
+{% endif %}
+
+{% set shortedProfiles = {"Strategic Partner": [], "Invest Member": [], "Canterbury Trusted": [], "notag" : []} %}
+
+{% for profile in objects.results %}
+  {% if profile.membership_tags != null and profile.membership_tags|length > 0 %}
+    {% set _ = shortedProfiles[profile.membership_tags[0]].append(profile) %}
+   {% else %}
+    {% set _ = shortedProfiles['notag'].append(profile) %}
+  {% endif %}
+{% endfor %}
+
+<div id="{{name}}" class="mwb-mem">
+  <div class="mwb-mem__container page-center">
+    <div class="mwb-mem__search">
+      <h4 class="mwb-mem__search-title">
+        {{ module.search.title }}
+      </h4>
+      <div class="mwb-mem__search-box">
+        <div class="mwb-mem__search-wrap">
+          <input type="search" class="mwb-mem__search-field search-bar-input" id="search-bar" placeholder="Search" />
+        <span class="clear-search"></span> 
+        </div>
+        <button class="mwb-mem__search-btn" id="search-button">
+          <span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 21 21" fill="none">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M13.9601 12.8185L18.2639 17.1223C18.4151 17.2737 18.5001 17.479 18.5 17.693C18.4999 17.907 18.4148 18.1122 18.2635 18.2635C18.1121 18.4147 17.9068 18.4997 17.6928 18.4996C17.4788 18.4995 17.2736 18.4144 17.1223 18.2631L12.8185 13.9593C11.5319 14.9558 9.91407 15.4247 8.29403 15.2707C6.67398 15.1167 5.17346 14.3513 4.09771 13.1302C3.02196 11.9091 2.45179 10.3241 2.5032 8.69754C2.5546 7.07101 3.22372 5.52514 4.37443 4.37443C5.52514 3.22372 7.07101 2.5546 8.69754 2.5032C10.3241 2.45179 11.9091 3.02196 13.1302 4.09771C14.3513 5.17346 15.1167 6.67398 15.2707 8.29403C15.4247 9.91407 14.9558 11.5319 13.9593 12.8185H13.9601ZM8.9003 13.6993C10.1733 13.6993 11.3941 13.1936 12.2943 12.2935C13.1944 11.3933 13.7001 10.1725 13.7001 8.8995C13.7001 7.62652 13.1944 6.40568 12.2943 5.50554C11.3941 4.60541 10.1733 4.09972 8.9003 4.09972C7.62732 4.09972 6.40648 4.60541 5.50634 5.50554C4.60621 6.40568 4.10052 7.62652 4.10052 8.8995C4.10052 10.1725 4.60621 11.3933 5.50634 12.2935C6.40648 13.1936 7.62732 13.6993 8.9003 13.6993Z" fill="white"/>
+            </svg>
+          </span>
+        </button>
+       
+      </div>
+      <span>{{ module.search.description }}</span>
+    </div>
+    <div class="mwb-mem__row">
+      <div class="mwb-mem__col--left">
+        <div class="mwb-mem__filter">
+          <div class="mwb-mem__filter-card card--industry">
+            <div class="mwb-mem__filter-card-wrap">
+              <div class="mwb-mem__filter-title open">
+                <h6>Industries</h6>
+                <span class="mwb-mem__filter-toggle">
+                  <span class="mwb-mem__filter-toggle--open">+</span>
+                  <span class="mwb-mem__filter-toggle--close">—</span>
+                </span>
+              </div>
+              <div class="mwb-mem__filter-category-outer">
+                <div class="mwb-mem__filter-category">
+                  {% if request.query_dict.industry %}
+                  <div class="mwb-mem__filter-clear clear-filter--visible industryFilter">
+                    <button class="mwb-mem__filter-clear-btn" id="clearIndustryFilter">
+                      Clear All
+                    </button>  
+                  </div>
+                  {% endif %}
+                  {% set selectedIndustry = request.query_dict.industry %}
+                  {% for industry in industries %}
+                    <span data-label="{{industry.value}}" class="industry-list-item mwb-mem__filter-category-label {% if industry.value in selectedIndustry %} active {% endif %}">{{industry.label}}</span>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mwb-mem__filter-card card--tier">
+            <div class="mwb-mem__filter-card-wrap">
+              <div class="mwb-mem__filter-title open">
+                <h6>Select Tier</h6>
+                <span class="mwb-mem__filter-toggle">
+                  <span class="mwb-mem__filter-toggle--open">+</span>
+                  <span class="mwb-mem__filter-toggle--close">—</span>
+                </span>
+              </div>
+              <div class="mwb-mem__filter-category-outer">
+                
+                <div class="mwb-mem__filter-category">
+                  {% if request.query_dict.tier %}
+                  <div class="mwb-mem__filter-clear tierFilter">
+                    <button class="mwb-mem__filter-clear-btn" id="clearTierFilter">
+                      Clear All
+                    </button>  
+                  </div>
+                  {% endif %}
+                  {% set selectedtier = request.query_dict.tier|split(",") %}
+                  {% for tier in tiers %}
+                    <div class="mwb-mem__filter-category-wrap">
+                    <div class="mwb-mem__custom-checkbox-wrap">
+                      <div class="mwb-mem__custom-checkbox-field">
+                        <input type="checkbox" class="mwb-mem__custom-checkbox tier" {% if tier.value in selectedtier %} checked {% endif %} value="{{tier.value}}" >
+                      </div>
+
+                      <div class="mwb-mem__filter-category-label"> {{tier.label}} </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mwb-mem__filter-card card--region">
+            <div class="mwb-mem__filter-card-wrap">
+              <div class="mwb-mem__filter-title open">
+                <h6>Select Region</h6>
+                <span class="mwb-mem__filter-toggle">
+                  <span class="mwb-mem__filter-toggle--open">+</span>
+                  <span class="mwb-mem__filter-toggle--close">—</span>
+                </span>
+              </div>
+              <div class="mwb-mem__filter-category-outer">
+                <div class="mwb-mem__filter-category">
+                  {% if request.query_dict.region %}
+                    <div class="mwb-mem__filter-clear regionFilter">
+                      <button class="mwb-mem__filter-clear-btn" id="clearRegionFilter">
+                        Clear All
+                      </button>  
+                    </div>
+                  {% endif %}
+                  {% set selectedRegion = request.query_dict.region %}
+                  {% for region in regions %}
+                  <div class="mwb-mem__filter-category-wrap">
+                    <div class="mwb-mem__custom-checkbox-wrap">
+                      <div class="mwb-mem__custom-checkbox-field">
+                        <input type="checkbox" class="mwb-mem__custom-checkbox region" {% if region.label in selectedRegion %} checked {% endif %} value="{{region.label}}" >
+                      </div>
+                      <div class="mwb-mem__filter-category-label">{{region.label}}</div>
+                    </div>
+                  </div>
+                  {% endfor %} 
+                </div>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mwb-mem__col--right">
+        <div class="mwb-mem__listing">
+          <div class="mwb-mem__listing-row">
+             {% for singleProfile in shortedProfiles %}
+            {% for profile in singleProfile|sort(false, false, 'directory_profile_name') %}            
+            <div class="mwb-mem__card">
+              {% if profile.membership_tags %}
+                <div class="mwb-mem__tags">
+                  {% for tag in profile.membership_tags %}
+                    <span class="mwb-mem__card-tag">{{tag}}</span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+              {% if profile.logo %}
+                <div class="mwb-mem__card-logo">
+                  <img src='{{profile.logo}}' alt='{{profile.directory_profile_name}}'>
+                </div>
+              {% endif %}
+            <div class="mwb-mem__card-content">
+              <h5 class="mwb-mem__card-name"><a href='/member-details/{{profile.id}}'>{{profile.directory_profile_name}}</a></h5>
+              <span class="mwb-mem__card-category">{{profile.category}}</span>
+              <p>{{ truncate(profile.business_description, 100, false, "...") }}</p>
+            </div>
+            <div class="mwb-mem__card-btn-wrap">
+              <a href='/member-details/{{profile.id}}' class="mwb-mem__card-btn" target='_blank'>See Profile</a>
+            </div>
+           </div>
+            {% endfor %}
+            {% endfor %}
+          </div>
+
+             
+          {% if tableLength > 30 %}
+            <div class="mwb-pagination pagination">
+              <button id="previous" class="pagination__btn-controls btn-prev">Previous  </button>
+              <div id="pagination" class="pagination__list"></div>
+              <button id="next" class="pagination__btn-controls btn-next">Next</button>
+            </div>
+          {% endif %}
+          
+          <div class="hidden-field" id="hidden">
+            <input class='hidden' value='{{tableLength}}'>
+          </div>
+          </div>
+        {% if tableLength == 0 %}
+        <div class="mwb-mem__noresult">
+          {% if module.no_result_image.image_field.src %}
+          <div class="mwb-mem__noresult-img">          
+            {% set sizeAttrs = 'width="{{ module.no_result_image.image_field.width }}" height="{{ module.no_result_image.image_field.height }}"' %}
+            {% if module.no_result_image.image_field.size_type == 'auto' %}
+            {% set sizeAttrs = 'width="{{ module.no_result_image.image_field.width }}" height="{{ module.no_result_image.image_field.height }}" style="max-width: 100%; height: auto;"' %}
+            {% elif module.no_result_image.image_field.size_type == 'auto_custom_max' %}
+            {% set sizeAttrs = 'width="{{ module.no_result_image.image_field.max_width }}" height="{{ module.no_result_image.image_field.max_height }}" style="max-width: 100%; height: auto;"' %}
+            {% endif %}
+            {% set loadingAttr = module.no_result_image.image_field.loading != 'disabled' ? 'loading="{{ module.no_result_image.image_field.loading }}"' : '' %}
+            <img src="{{ module.no_result_image.image_field.src }}" alt="{{ module.no_result_image.image_field.alt }}" {{ loadingAttr }} {{ sizeAttrs }}> 
+          </div>
+          {% endif %}
+          <p class="mwb-mem__noresult-text">
+            {{ module.no_result_image.no_result_text }}
+          </p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% require_css %}
+<style>
+  {% scope_css %}
+
+  {% if module.style.global_colors.overwrite_theme_settings %}
+  /* ----  Global CSS ----- */
+  .mwb-mem h1,
+  .mwb-mem h2,
+  .mwb-mem h3,
+  .mwb-mem h4,
+  .mwb-mem h5,
+  .mwb-mem h6 {
+    color: {{ module.style.global_colors.heading_color.color }};
+  }
+
+  .mwb-mem,
+  .mwb-mem__filter-category-label,
+  .mwb-mem__card-content p {
+    color: {{ module.style.global_colors.body_color.color }};
+  }
+  {% endif %} 
+
+  .mwb-mem__filter-category::-webkit-scrollbar-track {
+    background-color: rgba({{ module.style.search.container_background_color.color | convert_rgb }},40%);
+  }
+
+  .mwb-mem__filter-category::-webkit-scrollbar-thumb {
+    background-color: rgba({{ module.style.global_colors.primary_color.color | convert_rgb }},{{ module.style.global_colors.primary_color.opacity }}%);
+  }
+
+  .mwb-mem__filter-category::-webkit-scrollbar-thumb:hover {
+    background-color: rgba({{ module.style.global_colors.primary_color.color | convert_rgb }},80%);
+  }
+
+  .mwb-mem__search-btn,
+  .mwb-mem__card-btn,
+  .mwb-mem__btn--more,
+  .mwb-mem__filter-title.open .mwb-mem__filter-toggle {
+    background-color: rgba({{ module.style.global_colors.primary_color.color | convert_rgb }},{{ module.style.global_colors.primary_color.opacity }}%);
+  }
+
+  .mwb-mem__btn--more.loading {
+    background-color: rgba({{ module.style.global_colors.primary_color.color | convert_rgb }},80%);
+  }
+
+  .mwb-mem__search {
+    background-color: rgba({{ module.style.search.container_background_color.color | convert_rgb }},{{ module.style.search.container_background_color.opacity }}%);
+    box-shadow: 0 0 0 100vmax rgba({{ module.style.search.container_background_color.color | convert_rgb }},{{ module.style.search.container_background_color.opacity }}%);
+    clip-path: inset(0 -100vmax);
+  }
+
+  .mwb-mem__search-field {
+    background-color: rgba({{ module.style.search.input_field.background_color.color | convert_rgb }},{{ module.style.search.input_field.background_color.opacity }}%); 
+    border: 1px solid rgba({{ module.style.search.input_field.border_color.color | convert_rgb }},{{ module.style.search.input_field.border_color.opacity }}%);
+    border-radius: 5px 0 0 5px;
+    transition: border-color 0.2s linear;
+  } 
+
+  .mwb-mem__search-field:focus {
+    box-shadow: none;
+    border-color: rgba({{ module.style.global_colors.primary_color.color | convert_rgb }},{{ module.style.global_colors.primary_color.opacity }}%);
+  }
+
+  .mwb-mem__search-btn {
+    border: 1px solid rgba({{ module.style.search.input_field.border_color.color | convert_rgb }},{{ module.style.search.input_field.border_color.opacity }}%);;
+    border-radius: 0 5px 5px 0;
+  }
+
+  .mwb-mem__filter-card {
+    border: 1px solid rgba({{ module.style.card.border_color.color | convert_rgb }},{{ module.style.card.border_color.opacity }}%);
+  }
+  
+  .mwb-mem__filter-clear {
+    background-color: rgba({{ module.style.card.background_color.color | convert_rgb }},{{ module.style.card.background_color.opacity }}%);
+  }
+
+  .mwb-mem__card {
+    background-color: rgba({{ module.style.company_card.background_color.color | convert_rgb }},{{ module.style.company_card.background_color.opacity }}%);
+    border: 1px solid rgba({{ module.style.company_card.border_color.color | convert_rgb }},{{ module.style.company_card.border_color.opacity }}%);
+  }
+
+  .mwb-mem__card-tag {
+    background-color: rgba({{ module.style.tag.background_color.color | convert_rgb }},{{ module.style.tag.background_color.opacity }}%);
+    color: {{ module.style.tag.text_color.color }};
+  } 
+
+  .mwb-mem__filter-category-label.active {
+    color: {{ module.style.global_colors.primary_color.color }};
+  }
+  {% end_scope_css %}
+</style>
+{% end_require_css %}
+
+
+{% require_js %}
+<script>
+  jQuery(document).ready(function($) { 
+    
+    function toggleItem($item) {
+      var $filterTitle = $item.find('.mwb-mem__filter-title');
+      var $filterCategory = $item.find('.mwb-mem__filter-category-outer');
+      $filterTitle.toggleClass('open');
+      $filterCategory.slideToggle();
+    }
+
+    function handleItemClick() {
+      $('.mwb-mem__filter-title').on('click', function() {
+        var $item = $(this).closest('.mwb-mem__filter-card');
+        if ($(window).width() <= 767) {
+          $('.mwb-mem__filter-card').not($item).find('.mwb-mem__filter-title').removeClass('open');
+          $('.mwb-mem__filter-card').not($item).find('.mwb-mem__filter-category-outer').slideUp();
+        }
+        toggleItem($item);
+      });
+    }
+
+    function initializeItems() {
+      if ($(window).width() > 767) {
+        // In desktop view, open all items by default
+        $('.mwb-mem__filter-card .mwb-mem__filter-title').addClass('open');
+        $('.mwb-mem__filter-category-outer').slideDown();
+      } else {
+        // In mobile view, close all items by default
+        $('.mwb-mem__filter-card .mwb-mem__filter-title').removeClass('open');
+        $('.mwb-mem__filter-category-outer').slideUp();
+      }
+    }
+    
+    // ClearFilter Adjustment 
+    
+    $('.mwb-mem__filter-title').on('click',function() {
+      $card = $(this).closest('.mwb-mem__filter-card');
+      if($(window).width()>767) {
+        setTimeout(function() {
+          if($card.hasClass('clear-filter--visible') && !($(this).hasClass('open'))) {
+            $card.toggleClass('dropdown--close');
+          }
+        },400);
+      } else {
+        setTimeout(function() {
+          
+          if($card.hasClass('clear-filter--visible') && !($(this).hasClass('open'))) {
+            $card.toggleClass('dropdown--close');
+          } 
+          $('.mwb-mem__filter-card.clear-filter--visible').not($card).addClass('dropdown--close');
+        },400);
+      }
+    })
+    
+    $(window).on('resize load',function() {
+      if($(window).width()<=767) {
+        $('.mwb-mem__filter-card.clear-filter--visible').addClass('dropdown--close');
+      } else {
+        setTimeout(function() {
+          if(($('.mwb-mem__filter-title').hasClass('open'))) {
+            $('.mwb-mem__filter-title').parents('.mwb-mem__filter-card.clear-filter--visible').removeClass('dropdown--close');
+          } else {
+            $('.mwb-mem__filter-title').parents('.mwb-mem__filter-card.clear-filter--visible').addClass('dropdown--close');
+          }
+        },400);
+      }
+    })
+
+    // Initialize items on page load
+    initializeItems();
+
+    // Handle clicks on items
+    handleItemClick();
+
+    // Handle window resize
+    var resizeTimer;
+    $(window).on('resize', function() {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function() {
+        // Re-initialize items after a short delay to prevent rapid open/close
+        initializeItems();
+      }, 100);
+    });
+    
+    let filter = {
+      region: "",
+      tier: "",
+      industry: "",
+      search: "",
+      page: "",
+      skip: "",
+    };
+
+    let params = new URLSearchParams(location.search);
+
+    let region = params.get('region');
+    if(region) {
+      filter.region = region;
+    }
+
+    let tier = params.get('tier');
+    if(tier) {
+      filter.tier = tier;
+    }
+
+    let industry = params.get('industry');
+    if(industry) {
+      filter.industry = industry;
+    }
+
+    let page = params.get('page');
+    if(page) {
+      filter.page = page;
+    }
+
+    let search = params.get('search');
+    if(search) {
+      filter.search = search;
+      document.querySelector('#search-bar').value = search;
+      document.querySelector('.clear-search').style.display = 'block';
+    }
+
+    const prepareQuery = () => {
+      let qs = "";
+      window.Object.keys(filter).forEach((el) => {
+        if (el.length > 0 && filter[el] !== "") {
+          qs = qs + "&" + el + "=" + filter[el];
+        }
+      });
+
+      location.search = qs;
+    };
+
+    const regionElement = document.querySelectorAll('.region');
+    let selectedRegion = filter.region != '' ? filter.region.split(',') : [];
+      regionElement.forEach((regionItem) => {
+      regionItem.addEventListener("change", function(e){
+        if(filter.region.split(',').includes(e.target.value)){
+          selectedRegion = filter.region.split(',').filter(item => item != e.target.value);
+        } else {
+          selectedRegion.push(e.target.value);
+        }
+        filter.page = '';
+        filter.region = selectedRegion.join(',');
+        prepareQuery();
+      });
+    });
+
+    const tierElement = document.querySelectorAll('.tier');
+    let selectedTierArray = filter.tier != "" ? filter.tier.split(',') : [];
+    tierElement.forEach((tierItem) => {
+      tierItem.addEventListener("change", function(e) {
+        if(filter.tier.split(',').includes(e.target.value)){
+          selectedTierArray = filter.tier.split(',').filter(item => item != e.target.value);
+        } else {
+          selectedTierArray.push(e.target.value);
+        }
+        filter.page = '';
+        filter.tier = selectedTierArray.join(',');
+        prepareQuery();
+      });
+    });
+
+    let industryArray = filter.industry != '' ? filter.industry.split(',') : [];
+    document.querySelectorAll('.industry-list-item').forEach((item) => {
+      item.addEventListener('click', function (e) {
+        if(filter.industry.split(',').includes(e.target.getAttribute('data-label'))) {
+          industryArray = filter.industry.split(',').filter(item => item != e.target.getAttribute('data-label'));
+        } else {
+          industryArray.push(e.target.getAttribute('data-label'));
+        }
+        filter.page = '';
+        filter.industry = industryArray.join(',');
+        prepareQuery();
+      });
+    });
+
+    document.querySelector('.search-bar-input').addEventListener('input', (event) => {
+      if(event.target.value.length >= 1) {
+        document.querySelector('.clear-search').style.display = 'block';
+      } else if(event.target.value.length == 0) {
+        document.querySelector('.clear-search').style.display = 'none';
+      }
+    });
+    
+    document.querySelector('.search-bar-input').addEventListener('keypress', function(e){
+      if(e.key == 'Enter') {
+        filter.search = e.target.value;
+        prepareQuery();
+      }
+    })
+
+    document.querySelector('#search-button').addEventListener('click', function(e){
+      let searchValue = document.querySelector('#search-bar').value;
+      filter.search = searchValue;
+      filter.page = "";
+      prepareQuery();
+    });
+    
+    document.querySelector('#search-button').addEventListener('click', function(e){
+      let searchValue = document.querySelector('#search-bar').value;
+      filter.search = searchValue;
+      filter.page = "";
+      prepareQuery();
+    });
+
+    document.querySelector('.clear-search').addEventListener('click', function(e){
+      document.querySelector('#search-bar').value = '';
+      document.querySelector('.clear-search').style.display = 'none';
+      if(filter.search != '') {
+        filter.search = '';
+        prepareQuery();
+      }
+    });
+    filter.industry != '' && document.getElementById('clearIndustryFilter').addEventListener('click', function(){
+      filter.industry = '';
+      prepareQuery();
+    });
+
+    filter.tier != '' && document.getElementById('clearTierFilter').addEventListener('click', function(){
+      filter.tier = '';
+      prepareQuery();
+    });
+
+    filter.region != '' && document.getElementById('clearRegionFilter').addEventListener('click', function(){
+      filter.region = '';
+      prepareQuery();
+    });
+    
+    var tablelength = $('.hidden').val();
+    var limit = 30;
+    const totalPages = Math.ceil(parseInt(tablelength)/parseInt(limit));
+    let currentPage = filter.page || 1;
+
+    if(currentPage == 1) {
+      $('#previous').attr("disabled", true);
+    }
+
+    if(currentPage == totalPages) {
+      $('#next').attr("disabled", true);
+    }
+    
+    parseInt(tablelength) > 1 && document.getElementById('next').addEventListener('click', function(){
+      currentPage = parseInt(currentPage) + 1;
+      $('#next').attr("disabled", true);
+      filter.page = currentPage;
+      prepareQuery();
+    });
+    
+    parseInt(tablelength) > 1 && document.getElementById('previous').addEventListener('click', function(){
+      currentPage = parseInt(currentPage) - 1;
+    $('#previous').attr("disabled", true);
+    if(currentPage == 1) {
+      filter.page = '';
+      prepareQuery();
+    } else {
+      filter.page = currentPage;
+      prepareQuery();
+    }
+    });
+
+    // Define the number of pages to show before and after the current page
+    let prePageRange;
+    let postPageRange;
+    prePageRange = window.innerWidth < 767 ? parseInt(currentPage) == parseInt(totalPages) ? 1 : 0 : 1;
+    postPageRange = window.innerWidth < 767 ? parseInt(currentPage) >= 2 ? 0 : 1 : 1;
+
+    if(window.innerWidth < 767){
+      if (parseInt(currentPage) == parseInt(totalPages)){
+        prePageRange = 1;
+      } else {
+        prePageRange = 0;
+      }
+      if(parseInt(currentPage) >= 2) {
+        postPageRange = 0;
+      } else {
+        postPageRange = 1;
+      }
+    } else if(currentPage == 1) {
+      prePageRange = 0 ;
+      postPageRange = 4;
+    } else if(currentPage == 2) {
+      prePageRange = 1;
+      postPageRange = 3;
+    }  else if(currentPage == 3) {
+      prePageRange = 2;
+      postPageRange = 2;
+    }  else if(currentPage == 3) {
+      prePageRange = 3;
+      postPageRange = 1;
+    } else if(parseInt(currentPage) == parseInt(totalPages)){
+      prePageRange = 4;
+      postPageRange = 1;
+    } else {
+      prePageRange = 2;
+      postPageRange = 1;
+    }
+
+    // Calculate the first and last page numbers to show
+    let firstPage = Math.max(1, currentPage - prePageRange);
+    let lastPage = Math.min(totalPages, parseInt(currentPage) + postPageRange);
+
+    // Create a loop to generate the pagination links
+    let paginationLinks = '';
+    for (let i = firstPage; i <= lastPage; i++) {
+      if (i == currentPage) {
+        paginationLinks += `<button class="pagination__item active" disabled>${i}</button>`;
+      } else {
+        paginationLinks += `<button class="pagination__item" data-page="${i}">${i}</button>`;
+      }
+    }
+    // Add ellipsis if necessary
+    if(totalPages > 6 && window.innerWidth >= 767){
+    if (firstPage > 1) {
+      if(firstPage == 2) {
+        paginationLinks = `<button class="pagination__item" data-page="1">1</button>${paginationLinks}`;
+      } else {
+        paginationLinks = `<button class="pagination__item" data-page="1">1</button>...${paginationLinks}`;
+      }
+    }
+    if (lastPage < totalPages) {
+      if(lastPage == totalPages-1) {
+        paginationLinks += `<button  class="pagination__item" data-page="${totalPages}">${totalPages}</button>`;  
+      } else {
+        paginationLinks += `...<button class="pagination__item" data-page="${totalPages}">${totalPages}</button>`;
+      }
+    }
+    }
+    if(window.innerWidth < 767) {
+    if (firstPage > 1) {
+      if(firstPage == 2) {
+        paginationLinks = `<button class="pagination__item" data-page="1">1</button>${paginationLinks}`;
+      } else {
+        paginationLinks = `<button class="pagination__item" data-page="1">1</button>...${paginationLinks}`;
+      }
+    }
+    if (lastPage < totalPages) {
+      if(lastPage == totalPages-1) {
+        paginationLinks += `<button  class="pagination__item" data-page="${totalPages}">${totalPages}</button>`;  
+      } else {
+        paginationLinks += `...<button class="pagination__item" data-page="${totalPages}">${totalPages}</button>`;
+      }
+    }
+    }
+
+    // Display the pagination links on the page
+    const paginationContainer = document.querySelector('.pagination__list');
+    if(paginationLinks && totalPages > 1){
+    paginationContainer.innerHTML = paginationLinks;
+    }
+
+    // Add event listeners to handle the pagination click events
+    const paginationLinksEl = document.querySelectorAll('.pagination__item');
+    paginationLinksEl.forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        currentPage = parseInt(e.target.dataset.page);
+        // Call a function to update the content based on the new current page
+        if(parseInt(currentPage) == 1) {
+          filter.page = '';
+          prepareQuery();
+        } else {
+          filter.page = currentPage;
+          prepareQuery();
+        }
+      });
+    });
+
+    
+  });
+</script>
+{% end_require_js %}
